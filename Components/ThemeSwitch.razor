@@ -1,0 +1,37 @@
+﻿<div class="switch-container">
+    <label class="switch">
+        @* Use @onclick:preventDefault to stop the toggle until logic finishes *@
+        <input type="checkbox" checked="@Value" @onclick="HandleClick" @onclick:preventDefault />
+        <span class="slider round"></span>
+    </label>
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <span class="switch-label">@Label</span>
+    }
+</div>
+
+@code {
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+
+    // This is the missing parameter causing your error
+    [Parameter] public EventCallback<bool> OnBeforeChange { get; set; }
+
+    private async Task HandleClick()
+    {
+        // Calculate what the NEW value would be
+        bool newValue = !Value;
+
+        if (OnBeforeChange.HasDelegate)
+        {
+            // Call the function in your Admin page (ToggleActivity)
+            await OnBeforeChange.InvokeAsync(newValue);
+        }
+        else
+        {
+            // If no logic provided, just update the value normally
+            await ValueChanged.InvokeAsync(newValue);
+        }
+    }
+}

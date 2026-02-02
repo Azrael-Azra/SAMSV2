@@ -1,0 +1,197 @@
+﻿@page "/class-page"
+@inject NavigationManager _nav
+@inject Supabase.Client _supabase
+@using SAMS.Models
+@inject IJSRuntime _js
+@inject AuthState _auth
+<PageTitle>Students</PageTitle>
+
+<div class="content-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3>Section</h3>
+        <button @onclick="ToggleAddSection" class="btn btn-primary @(_auth.accessLevel == "superadmin" ? "" : "d-none")">Add New Section</button>
+    </div>
+
+    <div class="p-3 bg-white border border-1 mb-3 @(isAddAdmin ? "" : "d-none")">
+        <div class="add-input">
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">Section name</p>
+                <input @bind:get="sectionName" @bind:set="(value) => sectionName = value.ToString().ToUpper()" type="text" class="form-control"/>
+            </div>
+
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">Teacher</p>
+                <select @bind="teacherId" class="form-select text-center">
+                    <option value="@Guid.Empty">- - Select Teacher - -</option>
+                    @foreach (var item in _teacherList)
+                    {
+                        <option value="@item.Id">@item.FullName</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="d-flex flex-row gap-2 mt-3">
+            <button @onclick="AddSection" class="btn btn-primary">Add Section</button>
+            <button @onclick="CloseAddSection" class="btn btn-dark">Cancel</button>
+        </div>
+    </div>
+
+    <div class="position-relative d-flex flex-grow-0 mb-3">
+        <i class="bi bi-search position-absolute c2" style="top: .5rem; left: .75rem; font-size: 18px;"></i>
+        <input @bind="@searchString" @bind:event="oninput" type="text" class="form-control border search" placeholder="Search..." />
+    </div>
+
+    <table class="table border border-1 p-3 align-middle">
+        <thead>
+            <tr>
+                <td>Section</td>
+                <td>Teacher</td>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in _filteredSection)
+            {
+                <tr>
+                    <td>@item.sectionName</td>
+                    <td>@item.teacherName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code{
+    bool isAddAdmin = false;
+    List<Teacher> _teacherList = new();
+    List<Class> _classList = new();
+    string sectionName = string.Empty;
+    Guid teacherId = Guid.Empty;
+    List<TeacherSectionViewModel> _teacherSectionViewModels = new();
+    string searchString = string.Empty;
+    IEnumerable<TeacherSectionViewModel> _filteredSection => _teacherSectionViewModels.Where(u => string.IsNullOrWhiteSpace(searchString) ||
+                                                             u.teacherName.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                                                             u.sectionName.Contains(searchString, StringComparison.OrdinalIgnoreCase));
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAdmin();
+    }
+
+    // Load teachers and classes and joining them
+    private async Task LoadAdmin()
+    {
+        var response = await _supabase.From<Teacher>().Get();
+
+        if (response.Models.Any())
+        {
+            _teacherList = response.Models;
+            var teachers = response.Models;
+
+            var classList = await _supabase.From<Class>().Get();
+
+            if (classList != null)
+            {
+                _classList = classList.Models;
+                var sections = classList.Models;
+
+                _teacherSectionViewModels = (from c in sections join t in teachers on c.TeacherId equals t.Id select new TeacherSectionViewModel
+                                            {
+                                                classId = c.Id,
+                                                sectionName = c.SectionName,
+                                                teacherId = c.TeacherId,
+                                                teacherName = t.FullName
+                                            }).ToList();
+            }
+
+
+        }
+        else
+        {
+            await _js.InvokeVoidAsync("alert", "There are no current teachers");
+        }
+
+
+    }
+
+    //Toggle Add Student
+    private void ToggleAddSection()
+    {
+        isAddAdmin = true;
+        sectionName = string.Empty;
+        teacherId = Guid.Empty;
+    }
+
+    //Close Add Student Modal
+    private void CloseAddSection()
+    {
+        isAddAdmin = false;
+        sectionName = string.Empty;
+        teacherId = Guid.Empty;
+    }
+
+
+    //Add class to supabase
+    private async Task AddSection()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sectionName))
+            {
+                await _js.InvokeVoidAsync("alert", "Section name cannot be empty");
+                return;
+            }
+
+            if (teacherId == Guid.Empty)
+            {
+                await _js.InvokeVoidAsync("alert", "Please select a teacher");
+                return;
+            }
+
+            var updatedClass = await _supabase.From<Class>().Get();
+            if (updatedClass != null)
+            {
+                var classTocheck = updatedClass.Models.Where(u => u.SectionName == sectionName).Any();
+
+                if (classTocheck)
+                {
+                    await _js.InvokeVoidAsync("alert", "Section name already exist");
+                    return;
+                }
+            }
+
+            var result = await _supabase.From<Class>().Insert(new Class
+            {
+                SectionName = sectionName,
+                TeacherId = teacherId,
+            });
+
+            if (result.Models.Any())
+            {
+                await _js.InvokeVoidAsync("alert", "Section added successfully");
+                await LoadAdmin();
+                CloseAddSection();
+            }
+            else
+            {
+                await _js.InvokeVoidAsync("alert", "Failed to add section");
+            }
+        }
+        
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", ex.Message);
+        }
+    }
+
+    //View models for joining teacher and class
+    public class TeacherSectionViewModel
+    {
+        public Guid classId { get; set; }
+        public Guid teacherId { get; set; }
+        public string sectionName { get; set; }
+        public string teacherName { get; set; }
+    }
+}

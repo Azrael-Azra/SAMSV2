@@ -1,0 +1,79 @@
+﻿@layout LoginLayout
+@page "/register"
+@inject NavigationManager _nav
+@inject IJSRuntime _js
+@inject Supabase.Client _supabase
+@using SAMS.Models
+<PageTitle>Registration Page</PageTitle>
+
+<div class="registerCard">
+    <h2 class="mb-3">Create Account</h2>
+
+    <!--Register-->
+    <div class="inputlogin">
+        <p class="m-0 p-0 fw-bold">Email</p>
+        <input @bind="email" type="text" class="form-control w-100 mt-2"/>
+    </div>
+
+    <div class="inputlogin mt-3">
+        <p class="m-0 p-0 fw-bold">Full Name</p>
+        <input @bind="full_name" type="text" class="form-control w-100 mt-2" />
+    </div>
+         
+    <div class="inputlogin mt-3">
+        <p class="m-0 p-0 fw-bold">Password</p>
+        <input @bind="password" type="password" class="form-control w-100 mt-2" />
+    </div>
+
+    <button @onclick="SignUp" class="btn btn-success mt-3 w-100">Sign Up</button>
+
+    <p class="mt-3">Already have an account? <a href="" class="text-decoration-none">Login here</a></p>
+
+</div>
+
+@code{
+    string email = string.Empty;
+    string password = string.Empty;
+    string full_name = string.Empty;
+
+    // Sign Up Method
+    private async Task SignUp()
+    {
+        try
+        {
+            var signUp = await _supabase.Auth.SignUp(email, password);
+
+            if (signUp.User == null)
+            {
+                await _js.InvokeVoidAsync("alert", "Signup failed");
+                return;
+            }
+
+            await _supabase.From<Teacher>().Insert(new Teacher
+            {
+                AuthUserId = Guid.Parse(signUp.User.Id),
+                FullName = full_name,
+                Email = email,
+                CreatedAt = DateTime.Now
+            });
+
+            await _js.InvokeVoidAsync("alert", "Account Registration Successful");
+            _nav.NavigateTo("/");
+        }
+        catch (Supabase.Gotrue.Exceptions.GotrueException ex2)
+        {
+            await _js.InvokeVoidAsync("alert", "Password restriction" + ex2.Message);
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", ex.Message);
+        }
+    }
+
+    // Navigate to Login Page
+    private void NavigateToLoginPage()
+    {
+        _nav.NavigateTo("/");
+    }
+
+}

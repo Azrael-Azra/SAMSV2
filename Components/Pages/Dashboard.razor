@@ -1,0 +1,101 @@
+﻿@page "/dashboard"
+@inject NavigationManager _nav
+@inject Supabase.Client _supabase
+@inject AuthState _auth
+
+<PageTitle>Dashboard</PageTitle>
+
+<div class="content-body">
+    <h3>Dashboard</h3>
+
+    <div class="dashboard-cards-container mt-2">
+        <div class="dashboard-cards bg-primary p-3">
+            <p>Total Students</p>
+            <p style="font-size:4rem;">@report.totalStudents</p>
+        </div>
+
+        <div class="dashboard-cards bg-success p-3">
+            <p>Present Today</p>
+            <p style="font-size:4rem;">@report.present</p>
+        </div>
+
+        <div class="dashboard-cards bg-danger p-3">
+            <p>Absent Today</p>
+            <p style="font-size:4rem;">@report.absent</p>
+        </div>
+
+        <div class="dashboard-cards bg-warning p-3">
+            <p>Late Today</p>
+            <p style="font-size:4rem;">@report.late</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    DashboardReport report = new();
+    Guid classId = Guid.Empty;
+    DateTime today = DateTime.UtcNow.Date;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboard();
+    }
+
+    private async Task LoadDashboard()
+    {
+        await GetClass();
+        if (classId == Guid.Empty) return;
+
+        await GetTotalStudents();
+        await GetTodayAttendance();
+    }
+
+    private async Task GetClass()
+    {
+        var res = await _supabase
+            .From<Class>()
+            .Where(c => c.TeacherId == _auth.id)
+            .Get();
+
+        if (res.Models.Any())
+            classId = res.Models.First().Id;
+    }
+
+    private async Task GetTotalStudents()
+    {
+        var students = await _supabase
+            .From<Student>()
+            .Where(s => s.ClassId == classId)
+            .Get();
+
+        report.totalStudents = students.Models.Count;
+    }
+
+    private async Task GetTodayAttendance()
+    {
+        var res = await _supabase
+            .From<Attendance>()
+            .Where(a =>
+                a.ClassId == classId &&
+                a.AttendanceDate == today)
+            .Get();
+
+        report.present = res.Models.Count(a => a.Status == "present");
+        report.absent = res.Models.Count(a => a.Status == "absent");
+        report.late = res.Models.Count(a => a.Status == "late");
+
+        report.attendanceRate =
+            report.totalStudents > 0
+                ? (report.present * 100) / report.totalStudents
+                : 0;
+    }
+
+    class DashboardReport
+    {
+        public int present { get; set; }
+        public int absent { get; set; }
+        public int late { get; set; }
+        public int totalStudents { get; set; }
+        public int attendanceRate { get; set; }
+    }
+}

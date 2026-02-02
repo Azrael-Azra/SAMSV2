@@ -1,0 +1,23 @@
+.sec{
+    color: rgba(0,0,0,0.7);
+}
+
+.loginCard {
+    background-color: #ffffff; /* Sets the card to plain white */
+    padding: 2rem;
+    border-radius: 12px; /* Rounded corners */
+    width: 100%;
+    max-width: 400px; /* Keeps it from getting too wide on desktop */
+    /* This creates the 'floating' shadow effect */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    /* Ensures text inside is readable on white */
+    color: #333333;
+    text-align: left;
+}
+
+    /* Make sure your "SAMS PORTAL" text is dark enough to see on white */
+    .loginCard h2 {
+        color: #1e3a8a;
+        margin-bottom: 1.5rem;
+        font-weight: bold;
+    }

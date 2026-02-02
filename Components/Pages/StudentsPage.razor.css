@@ -1,0 +1,12 @@
+.content-body {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    width: 100%;
+}
+
+.add-input {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}

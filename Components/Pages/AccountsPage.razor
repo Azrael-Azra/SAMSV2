@@ -1,0 +1,145 @@
+﻿@page "/accounts-page"
+@inject NavigationManager _nav
+@inject Supabase.Client _supabase
+@using SAMS.Models
+@inject AuthState _auth
+@inject IJSRuntime _js
+<PageTitle>Accounts Page</PageTitle>
+
+<div class="content-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3>My Account</h3>
+    </div>
+
+    <div class="p-3 bg-white border border-1 mb-3">
+        <div class="add-input">
+            <div class="p-0">
+                <p class="m-0 p-0 mb-2 fw-bold">Full Name</p>
+                <input @bind="full_name" type="text" class="form-control"/>
+            </div>
+
+            <div class="p-0">
+                <p class="m-0 p-0 mb-2 fw-bold">Email</p>
+                <input readonly @bind="email" type="text" class="form-control" />
+            </div>
+        </div>
+        <div class="d-flex flex-row gap-2 mt-3">
+            <button @onclick="UpdateDetails" class="btn btn-primary">Save</button>
+        </div>
+    </div>
+
+    <div class="reset-password p-3 bg-white border border-1">
+        <div class="mb-3">
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">New Password</p>
+                <input @bind="password" type="password" class="form-control" />
+            </div>
+
+            <div class="p-0 mb-3">
+                <p class="m-0 p-0 fw-bold">Confirm Password</p>
+                <input @bind="confirmPassword" type="password" class="form-control" />
+            </div>
+
+            <button @onclick="ResetPassword" class="btn btn-primary">Save</button>
+        </div>
+
+        
+    </div>
+</div>
+
+@code{
+    string email = string.Empty;
+    string password = string.Empty;
+    string confirmPassword = string.Empty;
+    string full_name = string.Empty;
+    Guid guid = Guid.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        email = _auth.Email;
+        full_name = _auth.FullName;
+    }
+
+    //Update the personal details
+    private async Task UpdateDetails()
+    {
+        bool confirm = await _js.InvokeAsync<bool>("confirm", "Are you sure you want to save changes?");
+
+        if (!confirm)
+        {
+            full_name = _auth.FullName;
+            return;
+        }
+
+        try
+        {
+
+            var result = await _supabase.From<Teacher>().Where(u => u.Id == _auth.id).Set(u => u.FullName, full_name).Update();
+
+            if (result.Models.Any())
+            {
+                await _js.InvokeVoidAsync("alert", "Profile updated successfully!");
+                _auth.FullName = full_name;
+            }
+            else
+            {
+                await _js.InvokeVoidAsync("alert", "Update failed: No records were modified");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", "Failed to update " + ex.Message);
+        }
+    }
+
+    //Change password
+    private async Task ResetPassword()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(password) && string.IsNullOrWhiteSpace(confirmPassword))
+            {
+                await _js.InvokeVoidAsync("alert", $"Failed to update\nFields cannot be empty");
+                return;
+            }
+
+            if (password != confirmPassword)
+            {
+                await _js.InvokeVoidAsync("alert", $"Failed to update\nPassword don't match");
+                return;
+            }
+
+            var confirm = await _js.InvokeAsync<bool>("confirm", "Are you sure you want to save changes?");
+
+            if (!confirm)
+            {
+                password = confirmPassword = string.Empty;
+                return;
+            }
+
+            var result = await _supabase.Auth.Update(new Supabase.Gotrue.UserAttributes { Password = password });
+
+            if (result != null && !string.IsNullOrEmpty(result.Id))
+            {
+                password = confirmPassword = string.Empty;
+
+                await _js.InvokeVoidAsync("alert", "Password updated successfully");
+            }
+            else
+            {
+                await _js.InvokeVoidAsync("alert", "Update failed: Could not verify user update.");
+            }
+
+
+        }
+        catch (Supabase.Gotrue.Exceptions.GotrueException ex2)
+        {
+            await _js.InvokeVoidAsync("alert", "Failed to update " + ex2.Message);
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", "Failed to update " + ex.Message);
+        }
+    }
+}

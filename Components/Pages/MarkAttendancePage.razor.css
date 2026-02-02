@@ -1,0 +1,62 @@
+.content-body {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    width:100%;
+}
+
+.attendance-date {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+    border: solid 1px rgba(0,0,0,0.2);
+    align-items: end;
+}
+
+.pill {
+    background-color: #6c757d;
+    padding: 4px 4px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFF;
+    cursor: pointer;
+    margin: 0;
+}
+
+.pill2 {
+    background-color: #198754;
+    padding: 4px 4px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFF;
+    cursor: pointer;
+    margin: 0;
+}
+
+.pill3 {
+    background-color: #dc3545;
+    padding: 4px 4px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFF;
+    cursor: pointer;
+    margin: 0;
+}
+
+.pill4 {
+    background-color: #ffc107;
+    padding: 4px 4px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000000;
+    cursor: pointer;
+    margin: 0;
+}

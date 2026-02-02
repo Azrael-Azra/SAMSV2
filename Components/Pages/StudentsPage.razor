@@ -1,0 +1,241 @@
+﻿@page "/students-page"
+@inject NavigationManager _nav
+@inject Supabase.Client _supabase
+@inject IJSRuntime _js
+<PageTitle>Students</PageTitle>
+
+<div class="content-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3>Students</h3>
+        <button @onclick="ToggleAddStudent" class="btn btn-primary">Add New Student</button>
+    </div>
+
+    <div class="p-3 bg-white border border-1 mb-3 @(isAddStudent ? "" : "d-none")">
+        <h5>Add New Student</h5>
+        <div class="add-input">
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">Name</p>
+                <input @bind="_student.FullName" type="text" class="form-control" />
+            </div>
+
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">Email</p>
+                <input @bind="_student.Email" type="text" class="form-control" />
+            </div>
+        </div>
+        <div class="add-input mt-2">
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">Section</p>
+                <select @bind="_student.ClassId" class="form-select text-center">
+                    <option value="@Guid.Empty"> - - Select Section - - </option>
+                    @foreach (var item in _sectionList)
+                    {
+                        <option value="@item.Id">@item.SectionName</option>
+                    }
+                </select>
+            </div>
+            <div class="p-0">
+                <p class="m-0 p-0 fw-bold">Password</p>
+                <input @bind="password" type="password" class="form-control" />
+            </div>
+        </div>
+
+        <div class="d-flex flex-row gap-2 mt-3">
+            <button @onclick="AddStudent" class="btn btn-primary">Add Student</button>
+            <button @onclick="CloseAddStudent" class="btn btn-dark">Cancel</button>
+        </div>
+    </div>
+
+    <div class="position-relative d-flex flex-grow-0 mb-3">
+        <i class="bi bi-search position-absolute c2" style="top: .5rem; left: .75rem; font-size: 18px;"></i>
+        <input @bind="@searchString" @bind:event="oninput" type="text" class="form-control border search" placeholder="Search admin..." />
+    </div>
+
+    <table class="table border border-1 p-3">
+        <thead>
+            <tr>
+                <td>Student Id</td>
+                <td>Name</td>
+                <td>Email</td>
+                <td>Class</td>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var item in _filteredstudent)
+            {
+                <tr>
+                    <td>@($"STU{item.studentId:D8}")</td>
+                    <td>@item.fullname</td>
+                    <td>@item.email</td>
+                    <td>@item.sectionName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code{
+    List<Class> _sectionList = new();
+    List<Student> _studentList = new();
+    List<StudentClassVM> _studentClassList = new();
+    string searchString = string.Empty;
+    bool isAddStudent = false;
+    Student _student = new();
+    string password = string.Empty;
+    IEnumerable<StudentClassVM> _filteredstudent => _studentClassList.Where(u => string.IsNullOrWhiteSpace(searchString) ||
+                                                    $"STU{u.studentId:D8}".Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                                                    u.sectionName.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+                                                    u.fullname.Contains(searchString,StringComparison.OrdinalIgnoreCase) ||
+                                                    u.email.Contains(searchString, StringComparison.OrdinalIgnoreCase));
+
+    //Load Students on Startup
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStudents();
+    }
+
+    //Get Students from Supabase
+    private async Task LoadStudents()
+    {
+        try
+        {
+            var result1 = await _supabase.From<Student>().Get();
+            var result2 = await _supabase.From<Class>().Get();
+
+            _studentList = result1.Models ?? new List<Student>();
+            _sectionList = result2.Models ?? new List<Class>();
+
+            if (_studentList.Any() && _sectionList.Any())
+            {
+                _studentClassList = (from s in _studentList
+                                     join c in _sectionList on s.ClassId equals c.Id
+                                     select new StudentClassVM
+                                     {
+                                         classId = c.Id,
+                                         email = s.Email,
+                                         fullname = s.FullName,
+                                         sectionName = c.SectionName,
+                                         id = s.Id,
+                                         studentId = s.StudentId
+                                     }).ToList();
+            }
+            else
+            {
+                _studentClassList = new();
+            }
+
+            
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", "Failed to student data. Try again later");
+        }
+
+    }
+
+    // private async Task GetSections()
+    // {
+    //     try
+    //     {
+    //         var response = await _supabase.From<Class>().Get();
+
+    //         if (response != null)
+    //         {
+    //             _sectionList = response.Models;
+    //         }
+    //     }
+    //     catch (Supabase.Gotrue.Exceptions.GotrueException ex2)
+    //     {
+    //         await _js.InvokeVoidAsync("alert", ex2.Message);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         await _js.InvokeVoidAsync("alert", ex.Message);
+    //     }
+    // }
+
+    //Toggle Add Student
+    private void ToggleAddStudent()
+    {
+        isAddStudent = true;
+    }
+
+    //Close Add Student Modal
+    private void CloseAddStudent()
+    {
+        isAddStudent = false;
+        _student = new();
+        password = string.Empty;
+    }
+
+    //Add student to supabase
+    private async Task AddStudent()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_student.FullName) || string.IsNullOrWhiteSpace(_student.Email) || string.IsNullOrWhiteSpace(password))
+            {
+                await _js.InvokeVoidAsync("alert", "Fields cannot be empty");
+                return;
+            }
+
+            if (_student.ClassId == Guid.Empty || _student.ClassId == null)
+            {
+                await _js.InvokeVoidAsync("alert", "Please select section");
+                return;
+            }
+
+            var result = await _supabase.Auth.SignUp(_student.Email,password);
+
+            if (result.User == null)
+            {
+                await _js.InvokeVoidAsync("alert", "Failed to add student");
+                return;
+            }
+
+            var count = await _supabase.From<Student>().Count(Supabase.Postgrest.Constants.CountType.Exact);
+
+            var addStudent = await _supabase.From<Student>().Insert(new Student
+            {
+                FullName = _student.FullName,
+                AuthUserId = Guid.Parse(result.User.Id),
+                ClassId = _student.ClassId,
+                Email = _student.Email,
+                CreatedAt = DateTime.Now,
+                StudentId = count + 1
+            });
+
+            if (addStudent.Models != null)
+            {
+                await _js.InvokeVoidAsync("alert", "Student added successfully");
+                CloseAddStudent();
+                await LoadStudents();
+            }
+            else
+            {
+                await _js.InvokeVoidAsync("alert", "Failed to add student");
+            }
+
+
+        }
+        catch (Supabase.Gotrue.Exceptions.GotrueException ex2)
+        {
+            await _js.InvokeVoidAsync("alert", ex2.Message);
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", ex.Message);
+        }
+    }
+
+    public class StudentClassVM
+    {
+        public Guid id { get; set; }
+        public Guid classId { get; set; }
+        public int studentId { get; set; }
+        public string fullname { get; set; }
+        public string email { get; set; }
+        public string sectionName { get; set; }
+    }
+}

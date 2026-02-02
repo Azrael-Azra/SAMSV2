@@ -1,0 +1,110 @@
+﻿@layout LoginLayout
+@page "/"
+@inject NavigationManager _nav
+@inject Supabase.Client _supabase
+@inject IJSRuntime _js
+@inject AuthState _auth
+<PageTitle>Login Page</PageTitle>
+
+<div class="loginCard h-90">
+    <h2>SAMS PORTAL</h2>
+
+
+    <!--Login-->
+    <div class="inputlogin">
+        <p class="m-0 p-0 fw-bold">Email</p>
+        <input @bind="email" type="text" class="form-control w-100 mt-2"/>
+    </div>
+
+    <div class="inputlogin mt-3">
+        <p class="m-0 p-0 fw-bold">Password</p>
+        <input @onkeydown="OnKeyEnter" @bind:event="oninput" @bind="password" type="password" class="form-control w-100 mt-2" />
+    </div>
+
+    <button @onclick="LoginAccount" class="btn btn-primary mt-3 w-100">Login</button>
+
+    <p class="mt-3">Don't have an account? <a href="" @onclick="NavigateToRegister" class="text-decoration-none">Register here</a></p>
+
+</div>
+
+@code{
+    string email = string.Empty;
+    string password = string.Empty;
+
+    // Login method
+    private async Task LoginAccount()
+    {
+        try
+        {
+            // 1. Authenticate with Supabase
+            var result = await _supabase.Auth.SignInWithPassword(email, password);
+
+            if (result?.User != null)
+            {
+                // The Supabase User ID is a string, we parse it to Guid to match your Teacher model
+                Guid supabaseAuthId = Guid.Parse(result.User.Id);
+
+                // 2. Query the Teacher table using the correct column name from your model
+                var teacherResponse = await _supabase
+                    .From<Teacher>()
+                    .Where(x => x.AuthUserId == supabaseAuthId)
+                    .Get(); // Use Get() then check the model
+
+                var teacher = teacherResponse.Models.FirstOrDefault();
+
+                if (teacher != null)
+                {
+                    if (!teacher.IsApproved)
+                    {
+                        await _js.InvokeVoidAsync("alert", "Your account is pending for admin approval.\nPlease try again later.");
+                        return;
+                    }
+
+                    if (!teacher.isActive)
+                    {
+                        await _js.InvokeVoidAsync("alert", "Your account is disabled. Contact you administrator");
+                        return;
+                    }
+
+                    // 3. Update the INJECTED AuthState service
+                    _auth.isLoggedIn = true;
+                    _auth.authId = supabaseAuthId;
+                    _auth.id = teacher.Id;
+                    _auth.FullName = teacher.FullName;
+                    _auth.Email = result.User.Email ?? teacher.Email;
+                    _auth.CreatedAt = teacher.CreatedAt;
+                    _auth.isApproved = teacher.IsApproved;
+                    _auth.accessLevel = teacher.accessLevel;
+
+                    // 4. Navigate
+                    _nav.NavigateTo("/dashboard");
+                }
+                else
+                {
+                    await _js.InvokeVoidAsync("alert", "Login successful, but no Teacher profile found in the database.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // This will catch things like 'Invalid login credentials' or connection issues
+            await _js.InvokeVoidAsync("alert", $"Login error: {ex.Message}");
+        }
+    }
+
+    //Login when pressed enter
+    private async Task OnKeyEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoginAccount();
+        }
+    }
+
+    // Navigate to Register page
+    private void NavigateToRegister()
+    {
+        _nav.NavigateTo("/register");
+    }
+
+}

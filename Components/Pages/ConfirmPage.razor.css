@@ -1,0 +1,19 @@
+.sec{
+    color: rgba(0,0,0,0.7);
+}
+
+.loginCard {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 500px;
+    padding: 3rem 2rem;
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 12px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.inputlogin{
+    width: 100%;
+}

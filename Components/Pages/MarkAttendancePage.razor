@@ -1,0 +1,383 @@
+﻿    @page "/markattendance-page"
+    @inject NavigationManager _nav
+    @inject IJSRuntime _js
+    @inject Supabase.Client _supabase
+    @inject AuthState _auth
+    <PageTitle>Mark Attendance</PageTitle>
+
+    <div class="content-body">
+        <h3>Mark Attendance</h3>
+
+        <div class="attendance-date p-3 mt-2 mb-4">
+            <div>
+                <p class="mb-2 p-0 fw-bold">Select Date</p>
+                <input type="date" max="@DateTime.Now.ToString("yyyy-MM-dd")" @bind="selectedDate" class="form-control" />
+            </div>
+            <div>
+                <p class="mb-2 p-0 fw-bold">Select Class</p>
+                <select @bind="guid" class="form-select text-center">
+                    <option value="@Guid.Empty">- - Select Class - -</option>
+                    @foreach (var item in _classList)
+                    {
+                        <option value="@item.Id">@item.SectionName</option>
+                    }
+                </select>
+            </div>
+            <button @onclick="LoadAttendance" class="btn btn-primary flex-shrink-0 px-4">Load</button>
+        </div>
+
+        <p class="fst-italic p-0 m-0 @(isFetching ? "" : "d-none")">Fetching data...</p>
+
+        <div class="@(isStudentVisible ? "" : "d-none")">
+            <div class="d-flex align-items-center gap-2">
+                <button @onclick="SaveAttendance" class="btn btn-primary mb-2 px-4">Save</button>
+                <p class="m-0 p-0 fst-italic @(isSaving ? "" : "d-none")">Saving data...Please wait</p>
+            </div>
+            <table class="table border border-1">
+                <thead>
+                    <tr>
+                        <td>Student Id</td>
+                        <td>Name</td>
+                        <td>Email</td>
+                        <td>Status</td>
+                        <td>Actions</td>
+                    </tr>
+                </thead>
+
+                <tbody class="align-middle">
+                    @foreach (var item in _attendanceViewModel)
+                    {
+                        <tr>
+                            <td>@($"STU{item.studentId:D8}")</td>
+                            <td>@item.fullName</td>
+                            <td>@item.email</td>
+                            <td>
+                                <p class="@SwitchClass(item.status)">@item.status</p>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-row gap-1">
+                                    <btn @onclick='() => MarkStatus(item.id, "Present")' class="btn btn-success">Present</btn>
+                                    <btn @onclick='() => MarkStatus(item.id, "Absent")' class="btn btn-danger">Absent</btn>
+                                    <btn @onclick='() => MarkStatus(item.id, "Late")' class="btn btn-warning text-black">Late</btn>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+    </div>
+
+@code{
+    DateTime selectedDate = DateTime.Today;
+    List<Class> _classList = new();
+    List<Student> _studentsList = new();
+    List<Attendance> _attendanceList = new();
+    List<AttendanceVM> _attendanceViewModel = new();
+    bool isStudentVisible = false;
+    Guid guid = Guid.Empty;
+    bool hasAttendance = false;
+    bool isFetching = false;
+    bool isSaving = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTeacherClass();
+    }
+
+    private async Task LoadTeacherClass()
+    {
+        try
+        {
+            if (_auth.accessLevel == "superadmin")
+            {
+                var result = await _supabase.From<Class>().Get();
+                _classList = result.Models ?? new();
+            }
+            else
+            {
+                var result2 = await _supabase.From<Class>().Where(u => u.TeacherId == _auth.id).Get();
+                _classList = result2.Models ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", ex.Message);
+        }
+    }
+
+    private string SwitchClass(string name)
+    {
+        return name switch
+        {
+            "Not Marked" => "pill",
+            "Present" => "pill2",
+            "Absent" => "pill3",
+            "Late" => "pill4",
+            _ => "pill"
+        };
+    }
+
+    //Load students
+    private async Task LoadAttendance()
+    {
+        try
+        {
+            isFetching = true;
+            if (guid == Guid.Empty)
+            {
+                await _js.InvokeVoidAsync("alert", "Please select class");
+                isFetching = false;
+                return;
+            }
+
+            var queryDate = DateTime.SpecifyKind(selectedDate.Date, DateTimeKind.Utc);
+
+            // Fetch Data
+            var resAttendance = await _supabase.From<Attendance>().Where(u => u.ClassId == guid && u.AttendanceDate == queryDate).Get();
+            var resStudents = await _supabase.From<Student>().Where(u => u.ClassId == guid).Get();
+
+            _studentsList = resStudents.Models ?? new();
+            _attendanceList = resAttendance.Models ?? new();
+
+            // Flag if we are updating or creating new
+            hasAttendance = _attendanceList.Any();
+
+            // LEFT JOIN logic: Always start with the Student List
+            _attendanceViewModel = (from s in _studentsList
+                                    join c in _classList on s.ClassId equals c.Id
+                                    // Join attendance based on StudentId
+                                    join a in _attendanceList on s.Id equals a.StudentId into attendanceGroup
+                                    from a in attendanceGroup.DefaultIfEmpty()
+                                    select new AttendanceVM
+                                    {
+                                        attId = a?.Id ?? Guid.Empty, // Check if attendance record exists
+                                        fullName = s.FullName,
+                                        attendanceDate = a?.AttendanceDate ?? queryDate,
+                                        classId = s.ClassId,
+                                        email = s.Email,
+                                        sectionName = c.SectionName,
+                                        // If 'a' is null, they haven't been marked yet
+                                        status = a?.Status ?? "Not Marked",
+                                        id = s.Id,
+                                        studentId = s.StudentId,
+                                        createdAt = a?.CreatedAt ?? DateTime.UtcNow
+                                    }).ToList();
+
+            isStudentVisible = true;
+            isFetching = false;
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", ex.Message);
+            isFetching = false;
+        }
+    }
+    // private async Task LoadAttendance()
+    // {
+    //     try
+    //     {
+    //         isFetching = true;
+    //         if (guid == Guid.Empty)
+    //         {
+    //             await _js.InvokeVoidAsync("alert", "Please select class");
+    //             isFetching = false;
+    //             return;
+    //         }
+
+    //         var queryDate = DateTime.SpecifyKind(selectedDate.Date, DateTimeKind.Utc);
+
+    //         var result1 = await _supabase.From<Attendance>().Where(u => u.ClassId == guid && u.AttendanceDate == queryDate).Get();
+    //         var result2 = await _supabase.From<Student>().Where(u => u.ClassId == guid).Get();
+
+    //         _studentsList = result2.Models ?? new();
+    //         _attendanceList = result1.Models ?? new();
+
+    //         if (result1.Models.Any())
+    //         {
+    //             hasAttendance = true;
+    //             _attendanceViewModel = (from s in _studentsList join c in _classList on s.ClassId equals c.Id
+    //                                     join a in _attendanceList on c.Id equals a.ClassId select new AttendanceVM
+    //                                     {
+    //                                         attId = a.Id,
+    //                                         fullName = s.FullName,
+    //                                         attendanceDate = a.AttendanceDate,
+    //                                         classId = a.ClassId,
+    //                                         email = s.Email,
+    //                                         sectionName = c.SectionName,
+    //                                         status = a.Status ?? "Not Marked",
+    //                                         id = s.Id,
+    //                                         studentId = s.StudentId,
+    //                                         createdAt = a.CreatedAt
+    //                                     }).ToList();
+
+    //             isStudentVisible = true;
+    //         }
+    //         else
+    //         {
+    //             hasAttendance = false;
+    //             _attendanceViewModel = (from s in _studentsList join c in _classList on s.ClassId equals c.Id select new AttendanceVM
+    //                                {
+    //                                    id = s.Id,
+    //                                    fullName = s.FullName,
+    //                                    email = s.Email,
+    //                                    status = "Not Marked",
+    //                                    studentId = s.StudentId,
+    //                                    classId = s.ClassId,
+    //                                    sectionName = c.SectionName
+    //                                }).ToList();
+
+    //             isStudentVisible = true;
+    //         }
+
+    //         isFetching = false;
+
+
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         await _js.InvokeVoidAsync("alert", ex.Message);
+    //         isFetching = false;
+    //     }
+    // }
+
+    private void MarkStatus(Guid Id, string status)
+    {
+        var stud = _attendanceViewModel.FirstOrDefault(u => u.id == Id);
+        if (stud != null)
+        {
+            stud.status = status;
+        }
+    }
+    private async Task SaveAttendance()
+    {
+        try
+        {
+            bool confirm = await _js.InvokeAsync<bool>("confirm", "Confirm save attendance");
+            if (!confirm) return;
+
+            // Check if anyone is still "Not Marked"
+            if (_attendanceViewModel.Any(u => u.status == "Not Marked"))
+            {
+                await _js.InvokeVoidAsync("alert", "Cannot proceed. Some students are unmarked.");
+                return;
+            }
+
+            isSaving = true;
+            var dateToAdd = DateTime.SpecifyKind(selectedDate.Date, DateTimeKind.Utc);
+
+            foreach (var item in _attendanceViewModel)
+            {
+                if (item.attId == Guid.Empty)
+                {
+                    // NEW STUDENT: This student has no record for this date yet
+                    await _supabase.From<Attendance>().Insert(new Attendance
+                    {
+                        AttendanceDate = dateToAdd,
+                        ClassId = item.classId,
+                        CreatedAt = DateTime.UtcNow,
+                        Status = item.status.ToLower(),
+                        StudentId = item.id,
+                    });
+                }
+                else
+                {
+                    // EXISTING RECORD: Update the existing status using the attId
+                    await _supabase.From<Attendance>()
+                                   .Where(u => u.Id == item.attId)
+                                   .Set(x => x.Status, item.status.ToLower())
+                                   .Update();
+                }
+            }
+
+            await _js.InvokeVoidAsync("alert", "Attendance processed successfully");
+            isSaving = false;
+
+            // Refresh the list to get the new attIds from the database
+            await LoadAttendance();
+        }
+        catch (Exception ex)
+        {
+            await _js.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            isSaving = false;
+        }
+    }
+
+    // private async Task SaveAttendance()
+    // {
+    //     try
+    //     {
+
+    //         bool confirm = await _js.InvokeAsync<bool>("confirm", "Confirm save attendance");
+
+    //         if (!confirm) return;
+
+            
+
+    //         var check = _attendanceViewModel.Any(u => u.status == "Not Marked");
+
+    //         if (check)
+    //         {
+    //             await _js.InvokeVoidAsync("alert", "Cannot proceed. Some students are unmarked.");
+    //             isSaving = false;
+    //             return;
+    //         }
+    //         isSaving = true;
+
+            
+
+    //         if (hasAttendance)
+    //         {
+    //             foreach (var student in _attendanceViewModel)
+    //             {
+    //                 var updateStudent = await _supabase.From<Attendance>().Where(u => u.Id == student.attId).Set(x => x.Status,student.status).Update();
+    //             }
+    //             await _js.InvokeVoidAsync("alert", "Attendance updated successfully");
+    //         }
+    //         else
+    //         {
+    //             var dateToAdd = DateTime.SpecifyKind(selectedDate.Date, DateTimeKind.Utc);
+    //             foreach (var student in _attendanceViewModel)
+    //             {
+                    
+    //                 await _supabase.From<Attendance>().Insert(new Attendance
+    //                 {
+    //                     AttendanceDate = dateToAdd,
+    //                     ClassId = student.classId,
+    //                     CreatedAt = DateTime.UtcNow,
+    //                     Status = student.status,
+    //                     StudentId = student.id,
+    //                 });
+    //             }
+
+    //             await _js.InvokeVoidAsync("alert", "Attendance saved successfully");
+    //         }
+
+
+    //         isSaving = false;
+
+
+    //         await LoadAttendance();
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         await _js.InvokeVoidAsync("alert", ex.Message);
+    //         isSaving = false;
+    //     }
+    // }
+
+    private class AttendanceVM
+    {
+        public Guid attId { get; set; }
+        public DateTime attendanceDate { get; set; }
+        public string status { get; set; }
+        public Guid id { get; set; }
+        public Guid classId { get; set; }
+        public string sectionName { get; set; }
+        public int studentId { get; set; }
+        public string fullName { get; set; }
+        public string email { get; set; }
+        public DateTime createdAt { get; set; }
+    }
+}

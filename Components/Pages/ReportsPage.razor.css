@@ -1,0 +1,26 @@
+.content-body {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    width:100%;
+}
+
+.attendance-report-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.daily-report{
+    display:flex;
+    flex-direction: column;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+.status-card{
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}

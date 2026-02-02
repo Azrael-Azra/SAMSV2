@@ -1,0 +1,24 @@
+﻿@layout LoginLayout
+@page "/confirm"
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager _nav
+@inject Supabase.Client _supabase
+@inject IJSRuntime _js
+<PageTitle>Login Page</PageTitle>
+
+<div class="d-flex flex-column align-items-center justify-content-center">
+    <h3>Email Confirmed!</h3>
+    <p class="m-0 p-0">Your account has been successfully confirmed. Click below to login</p>
+    <a href="/">Login</a>
+</div>
+
+@code {
+    [Parameter] public string access_token { get; set; } = string.Empty;
+    [Parameter] public string type { get; set; } = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        // Optional: you can capture access_token for auto-login later
+        Console.WriteLine($"Confirmation type: {type}, token: {access_token}");
+    }
+}

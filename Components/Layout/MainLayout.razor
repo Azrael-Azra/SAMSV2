@@ -1,0 +1,96 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager _nav
+@inject AuthState _auth
+
+<div class="dashboard">
+    <div class="dashboard-header">
+        <p class="p-0 m-0 text-white">Student Attendance Managament System</p>
+        <div class="d-flex gap-2 align-items-center">
+            <p class="m-0 p-0 text-white">@email</p>
+            <button @onclick="Logout" class="btn btn-outline-light">Logout</button>
+        </div>
+    </div>
+    <div class="dashboard-content">
+        <div class="dashboard-sidebar">
+            <div class="dashboard-nav">
+                <div @onclick="() => OnSelectedItem(1)" class="dashboard-item @(index == 1 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 1 ? "text-white" : "")">Dashboard</p>
+                </div>
+                <div @onclick="() => OnSelectedItem(7)" class="dashboard-item @(index == 7 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 7 ? "text-white" : "")">Section</p>
+                </div>
+                <div @onclick="() => OnSelectedItem(2)" class=" dashboard-item @(index == 2 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 2 ? "text-white" : "")">Students</p>
+                </div>
+                <div @onclick="() => OnSelectedItem(3)" class="dashboard-item @(index == 3 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 3 ? "text-white" : "")">Mark Attendance</p>
+                </div>
+                <div @onclick="() => OnSelectedItem(4)" class="dashboard-item @(index == 4 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 4 ? "text-white" : "")">Reports</p>
+                </div>
+                <div @onclick="() => OnSelectedItem(5)" class="dashboard-item @(index == 5 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 5 ? "text-white" : "")">Admin</p>
+                </div>
+                <div @onclick="() => OnSelectedItem(6)" class="dashboard-item @(index == 6 ? "active" : "")">
+                    <p class="m-0 p-0 ms-3 @(index == 6 ? "text-white" : "")">Account</p>
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-body">
+            @Body
+        </div>
+    </div>
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code{
+    //Variable Declaration
+    int index = 1;
+    string email = "admin@school.com";
+
+    protected override void OnInitialized()
+    {
+        email = _auth.Email;
+    }
+
+    //Nav items
+    private void OnSelectedItem(int i)
+    {
+        index = i;
+        switch (index)
+        {
+            case 1:
+                _nav.NavigateTo("/dashboard");
+                break;
+            case 2:
+                _nav.NavigateTo("/students-page");
+                break;
+            case 3:
+                _nav.NavigateTo("/markattendance-page");
+                break;
+            case 4:
+                _nav.NavigateTo("/reports-page");
+                break;
+            case 5:
+                _nav.NavigateTo("/admin-page");
+                break;
+            case 6:
+                _nav.NavigateTo("/accounts-page");
+                break;
+            case 7:
+                _nav.NavigateTo("/class-page");
+                break;
+        }
+    }
+
+    //Logout
+    private void Logout()
+    {
+        _nav.NavigateTo("/");
+    }
+}
