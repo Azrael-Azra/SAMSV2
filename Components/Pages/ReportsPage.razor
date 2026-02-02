@@ -96,8 +96,11 @@
     protected override async Task OnInitializedAsync()
     {
         await GetClass();
-        await GetDailyReport();
-        await GetWeeklyReport();
+        if (classId != Guid.Empty)
+        {
+            await GetDailyReport();
+            await GetWeeklyReport();
+        }
     }
 
     private async Task GetClass()
@@ -126,42 +129,32 @@
     //Method for daily reports
     private async Task GetDailyReport()
     {
-        try
-        {
-            isFetching = true;
-            var queryDate = DateTime.SpecifyKind(dateNow.Date, DateTimeKind.Utc);
-            var result = await _supabase.From<Attendance>().Where(x => x.ClassId == classId && x.AttendanceDate == queryDate).Get();
+        var queryDate = dateNow.Date;
 
-            if (result.Models.Any())
-            {
-                dailyReport = new();
-                dailyReport.present = result.Models.Count(u => u.Status == "present");
-                dailyReport.absent = result.Models.Count(u => u.Status == "absent");
-                dailyReport.late = result.Models.Count(u => u.Status == "late");
-                dailyReport.totalStudents = dailyReport.present + dailyReport.absent + dailyReport.late;
-                if (dailyReport.totalStudents > 0)
-                {
-                    dailyReport.attendanceRate = (dailyReport.present * 100) / dailyReport.totalStudents;
-                }
-                else
-                {
-                    dailyReport.attendanceRate = 0;
-                }
+        var result = await _supabase
+            .From<Attendance>()
+            .Where(a =>
+                a.ClassId == classId &&
+                a.AttendanceDate == queryDate)
+            .Get();
 
-            }
-            else
-            {
-                dailyReport = new();
-                // await _js.InvokeVoidAsync("alert", "No attendance records found for the selected date. " + dateNow);
-            }
+        dailyReport = new();
 
-            isFetching = false;
-        }
-        catch (Exception ex)
-        {
-            await _js.InvokeVoidAsync("alert", ex.Message);
-        }
+        dailyReport.present = result.Models.Count(a => a.Status == "present");
+        dailyReport.absent = result.Models.Count(a => a.Status == "absent");
+        dailyReport.late = result.Models.Count(a => a.Status == "late");
+
+        dailyReport.totalStudents =
+            dailyReport.present +
+            dailyReport.absent +
+            dailyReport.late;
+
+        dailyReport.attendanceRate =
+            dailyReport.totalStudents > 0
+                ? (dailyReport.present * 100) / dailyReport.totalStudents
+                : 0;
     }
+
 
     //Get Weekly Report
     private async Task GetWeeklyReport()

@@ -7,8 +7,8 @@ public class Attendance : BaseModel
     [PrimaryKey("id")]
     public Guid Id { get; set; }
 
-    [Column("student_id")]
-    public Guid StudentId { get; set; }
+    [Column("student_no")]
+    public string StudentNo { get; set; }
 
     [Column("class_id")]
     public Guid ClassId { get; set; }

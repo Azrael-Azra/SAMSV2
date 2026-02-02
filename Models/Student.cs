@@ -6,9 +6,9 @@ public class Student : BaseModel
 {
     [PrimaryKey("id")]
     public Guid Id { get; set; }
-    
-    [Column("student_id")]
-    public int StudentId { get; set; }
+
+    [Column("student_no")]
+    public string StudentNo { get; set; }
 
     [Column("auth_user_id")]
     public Guid? AuthUserId { get; set; }

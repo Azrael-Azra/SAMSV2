@@ -148,7 +148,7 @@
             _attendanceViewModel = (from s in _studentsList
                                     join c in _classList on s.ClassId equals c.Id
                                     // Join attendance based on StudentId
-                                    join a in _attendanceList on s.Id equals a.StudentId into attendanceGroup
+                                    join a in _attendanceList on s.StudentNo equals a.StudentNo into attendanceGroup
                                     from a in attendanceGroup.DefaultIfEmpty()
                                     select new AttendanceVM
                                     {
@@ -161,7 +161,7 @@
                                         // If 'a' is null, they haven't been marked yet
                                         status = a?.Status ?? "Not Marked",
                                         id = s.Id,
-                                        studentId = s.StudentId,
+                                        studentNo = s.StudentNo,
                                         createdAt = a?.CreatedAt ?? DateTime.UtcNow
                                     }).ToList();
 
@@ -278,7 +278,7 @@
                         ClassId = item.classId,
                         CreatedAt = DateTime.UtcNow,
                         Status = item.status.ToLower(),
-                        StudentId = item.id,
+                        StudentNo = item.id,
                     });
                 }
                 else
