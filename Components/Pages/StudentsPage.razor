@@ -68,7 +68,11 @@
             @foreach (var item in _filteredstudent)
             {
                 <tr>
-                    <td>@item.studentNo</td>
+                    <td>
+                        @(string.IsNullOrWhiteSpace(item.studentNo)
+                            ? "STU00000000"
+                            : item.studentNo)
+                    </td>
                     <td>@item.fullname</td>
                     <td>@item.email</td>
                     <td>@item.sectionName</td>
@@ -162,23 +166,9 @@
             var auth = await _supabase.Auth.SignUp(_student.Email, password);
             if (auth.User == null) return;
 
-            var latest = await _supabase
-                .From<Student>()
-                .Order("created_at", Supabase.Postgrest.Constants.Ordering.Descending)
-                .Limit(1)
-                .Get();
-
-            string studentNo = "STU00000001";
-
-            if (latest.Models.Any())
-            {
-                var last = latest.Models.First().StudentNo.Replace("STU", "");
-                studentNo = $"STU{(int.Parse(last) + 1):D8}";
-            }
-
+            // 🚫 NO StudentNo HERE
             await _supabase.From<Student>().Insert(new Student
                 {
-                    StudentNo = studentNo,
                     FullName = _student.FullName,
                     Email = _student.Email,
                     ClassId = _student.ClassId,

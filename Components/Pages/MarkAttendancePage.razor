@@ -48,7 +48,12 @@
                     @foreach (var item in _attendanceViewModel)
                     {
                         <tr>
-                            <td>@($"STU{item.studentId:D8}")</td>
+                        <td>
+                            @(string.IsNullOrWhiteSpace(item.studentNo)
+                                ? "STU00000000"
+                                : item.studentNo)
+                        </td>
+
                             <td>@item.fullName</td>
                             <td>@item.email</td>
                             <td>
@@ -278,7 +283,7 @@
                         ClassId = item.classId,
                         CreatedAt = DateTime.UtcNow,
                         Status = item.status.ToLower(),
-                        StudentNo = item.id,
+                        StudentNo = item.studentNo
                     });
                 }
                 else
@@ -372,12 +377,15 @@
         public Guid attId { get; set; }
         public DateTime attendanceDate { get; set; }
         public string status { get; set; }
-        public Guid id { get; set; }
+
+        public Guid id { get; set; }              // students.id
+        public string studentNo { get; set; }     // students.student_no
+
         public Guid classId { get; set; }
         public string sectionName { get; set; }
-        public int studentId { get; set; }
         public string fullName { get; set; }
         public string email { get; set; }
         public DateTime createdAt { get; set; }
     }
+
 }
