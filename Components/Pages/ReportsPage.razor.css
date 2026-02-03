@@ -24,3 +24,20 @@
     grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
 }
+
+.report-present {
+    background: linear-gradient(135deg, #dcfce7, #86efac);
+}
+
+.report-absent {
+    background: linear-gradient(135deg, #fee2e2, #fca5a5);
+}
+
+.report-late {
+    background: linear-gradient(135deg, #fef9c3, #fde047);
+}
+
+/* Shared status card styling */
+.status-card > div {
+    border-radius: 8px;
+}
